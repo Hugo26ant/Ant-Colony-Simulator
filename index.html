@@ -2,132 +2,170 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Ant Colony: Empire Edition</title>
+    <title>Ant Colony: Action Empire</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Verdana', sans-serif; background: #000; color: white; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; color: white; }
         
         /* Video de Fondo Estilo Empire of the Ants */
-        #video-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
-        #bg-video { width: 100vw; height: 100vh; object-fit: cover; filter: brightness(0.4) contrast(1.2); }
+        #bg-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        #bg-video { width: 100vw; height: 100vh; object-fit: cover; filter: brightness(0.3) blur(2px); }
 
-        /* MENÚ DE INICIO */
-        #main-menu { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; background: rgba(0,0,0,0.4); transition: 0.8s; }
-        .title { font-size: 4rem; letter-spacing: 10px; color: #f1c40f; text-shadow: 0 0 20px black; margin-bottom: 20px; }
-        .species-select { display: flex; gap: 30px; }
-        .card { width: 200px; padding: 20px; background: rgba(255,255,255,0.1); border: 1px solid #5d4037; border-radius: 5px; cursor: pointer; text-align: center; transition: 0.3s; backdrop-filter: blur(5px); }
-        .card:hover { transform: translateY(-10px); border-color: gold; background: rgba(255,255,255,0.2); }
+        /* MENÚ CINEMÁTICO */
+        #main-menu { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; background: rgba(0,0,0,0.5); transition: 1s ease-in-out; }
+        .logo-title { font-size: 5rem; font-weight: 900; letter-spacing: 15px; color: #f1c40f; text-shadow: 0 0 30px #000; margin-bottom: 40px; }
+        .species-grid { display: flex; gap: 30px; }
+        .specie-card { width: 200px; padding: 25px; background: rgba(255,255,255,0.05); border: 1px solid rgba(241, 196, 15, 0.3); border-radius: 5px; cursor: pointer; text-align: center; transition: 0.3s; backdrop-filter: blur(10px); }
+        .specie-card:hover { transform: translateY(-10px); border-color: #f1c40f; background: rgba(241, 196, 15, 0.1); box-shadow: 0 0 20px rgba(241, 196, 15, 0.2); }
 
-        /* INTERFAZ DE JUEGO (OCULTA AL INICIO) */
-        #game-interface { display: none; padding: 20px; height: 100vh; box-sizing: border-box; grid-template-columns: 250px 1fr; gap: 20px; }
+        /* INTERFAZ DE JUEGO ACCIÓN */
+        #game-view { display: none; height: 100vh; grid-template-columns: 280px 1fr; gap: 15px; padding: 15px; box-sizing: border-box; }
         
-        /* MUNDO DE ACCIÓN */
-        #world { position: relative; background: rgba(45, 27, 10, 0.7); border: 2px solid #3e2723; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 100px #000; }
-        #player { position: absolute; width: 25px; height: 25px; background: gold; border-radius: 50%; box-shadow: 0 0 15px gold; border: 2px solid #000; z-index: 100; left: 50%; top: 50%; }
+        /* MUNDO DE MOVIMIENTO */
+        #ant-world { position: relative; background: rgba(30, 20, 10, 0.6); border: 2px solid #3e2723; border-radius: 15px; overflow: hidden; box-shadow: inset 0 0 150px #000; }
+        #ant-sprite { position: absolute; width: 40px; height: 40px; background: url('https://cdn-icons-png.flaticon.com'); background-size: contain; background-repeat: no-repeat; z-index: 50; transition: transform 0.1s; filter: drop-shadow(0 0 5px gold); }
         
-        .room { position: absolute; width: 120px; height: 120px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.5); }
-        .room.active { border-color: gold; background: rgba(241, 196, 15, 0.2); }
+        .chamber { position: absolute; width: 150px; height: 100px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; background: rgba(0,0,0,0.4); text-align: center; }
+        .chamber.highlight { border-color: #f1c40f; background: rgba(241, 196, 15, 0.1); box-shadow: 0 0 20px rgba(241, 196, 15, 0.2); }
 
-        .ui-panel { background: rgba(0,0,0,0.85); padding: 20px; border-radius: 10px; border: 1px solid #333; }
-        #log { height: 150px; overflow-y: auto; color: #2ecc71; font-family: monospace; font-size: 13px; margin-top: 20px; background: #000; padding: 10px; border-radius: 5px; }
+        /* POKÉDEX E INFO */
+        .panel { background: rgba(0,0,0,0.85); border: 1px solid #333; border-radius: 10px; padding: 20px; overflow-y: auto; }
+        #pokedex-list { margin-top: 15px; font-size: 12px; }
+        .entry { padding: 10px; border-bottom: 1px solid #222; opacity: 0.4; }
+        .entry.unlocked { opacity: 1; color: #f1c40f; border-left: 4px solid #f1c40f; }
+        #log { background: #000; height: 130px; margin-top: 15px; padding: 10px; font-family: monospace; color: #2ecc71; font-size: 12px; border-radius: 5px; border: 1px solid #222; }
     </style>
 </head>
 <body>
 
-    <div id="video-container">
-        <!-- Video Realista de Hormigas (Estilo Cinematic) -->
+    <div id="bg-container">
+        <!-- Video Atmosférico Estilo Empire of the Ants -->
         <iframe id="bg-video" src="https://www.youtube.com" frameborder="0"></iframe>
     </div>
 
-    <!-- Menú de Inicio -->
+    <!-- Menú Cinemático -->
     <div id="main-menu">
-        <div class="title">EMPIRE OF ANTS</div>
-        <p>Selecciona tu linaje para fundar la colonia</p>
-        <div class="species-select">
-            <div class="card" onclick="startGame('Carebara')"><h3>Carebara</h3><p>Guerreras letales</p></div>
-            <div class="card" onclick="startGame('Polyrhachis')"><h3>Polyrhachis</h3><p>Arquitectas tejedoras</p></div>
-            <div class="card" onclick="startGame('Messor')"><h3>Messor</h3><p>Recolectoras de grano</p></div>
+        <div class="logo-title">EMPIRE OF ANTS</div>
+        <div class="species-grid">
+            <div class="specie-card" onclick="initAction('Messor Barbarus', 'Granera')">
+                <h3>Messor</h3>
+                <p>Recolectora</p>
+                <small style="color:#44ccff">Especie Granívora</small>
+            </div>
+            <div class="specie-card" onclick="initAction('Carebara Diversa', 'Guerrera')">
+                <h3>Carebara</h3>
+                <p>Saqueadora</p>
+                <small style="color:#ff4444">Especie Guerrera</small>
+            </div>
+            <div class="specie-card" onclick="initAction('Polyrhachis Dives', 'Tejedora')">
+                <h3>Polyrhachis</h3>
+                <p>Tejedora</p>
+                <small style="color:#44ff44">Especie Arquitecta</small>
+            </div>
         </div>
     </div>
 
-    <!-- Interfaz de Juego -->
-    <div id="game-interface">
-        <div class="ui-panel">
-            <h2 id="ui-specie" style="color:gold;">Especie</h2>
-            <p>LVL: <b id="lvl">1</b></p>
-            <p>Rango: <b id="rank" style="color:grey">Nurse</b></p>
-            <p>Comida: <b id="food">0</b></p>
-            <hr>
-            <div id="log">Bienvenido al imperio. Usa WASD para explorar los túneles.</div>
+    <!-- Interfaz de Acción -->
+    <div id="game-view">
+        <div class="panel">
+            <h2 id="ui-name" style="color:#f1c40f;">-</h2>
+            <p>Nivel: <b id="ui-lvl">1</b></p>
+            <p>Casta: <b id="ui-rank" style="color:#bdc3c7;">Nurse</b></p>
+            <p>Comida: <b id="ui-food">0</b></p>
+            <div id="pokedex-list">
+                <h4 style="border-bottom: 1px solid #f1c40f;">INSECTOPEDIA</h4>
+                <div id="e0" class="entry">? Áfido (Nivel 1)</div>
+                <div id="e1" class="entry">? Cucaracha (Nivel 20)</div>
+                <div id="e2" class="entry">? Araña (Nivel 80)</div>
+            </div>
+            <div id="log">> Usa WASD para moverte.</div>
         </div>
 
-        <div id="world">
-            <div id="player"></div>
-            <div class="room" style="top:10%; left:10%;" id="reina">Cámara Real</div>
-            <div class="room" style="top:10%; left:70%;" id="cuna">Cámara de Cría</div>
-            <div class="room" style="top:70%; left:40%;" id="salida">Salida al Mundo</div>
+        <div id="ant-world">
+            <div id="ant-sprite"></div>
+            <!-- Cámaras del Hormiguero -->
+            <div class="chamber" style="top:10%; left:10%;" id="camara-reina">Cámara Real<br>(Protege)</div>
+            <div class="chamber" style="top:10%; left:70%;" id="camara-cuna">Cámara Cría<br>(Alimenta)</div>
+            <div class="chamber" style="top:70%; left:40%;" id="camara-salida">Salida Exterior<br>(Caza)</div>
         </div>
     </div>
 
 <script>
-    let g = { sp: '', lvl: 1, xp: 0, food: 0, pos: {x: 400, y: 300}, active: false };
-    const player = document.getElementById('player');
+    let s = { sp: '', lvl: 1, xp: 0, food: 0, pos: {x: 400, y: 300}, active: false };
+    const ant = document.getElementById('ant-sprite');
 
-    function startGame(species) {
-        g.sp = species;
-        g.active = true;
+    function initAction(name) {
+        s.sp = name;
+        s.active = true;
         document.getElementById('main-menu').style.opacity = '0';
         setTimeout(() => {
             document.getElementById('main-menu').style.display = 'none';
-            document.getElementById('game-interface').style.display = 'grid';
-            document.getElementById('ui-specie').innerText = species;
-        }, 800);
+            document.getElementById('game-view').style.display = 'grid';
+            document.getElementById('ui-name').innerText = name;
+            addLog(`Misión iniciada: Especie ${name}. Explora los túneles.`);
+        }, 1000);
+        updatePos();
     }
 
-    // Sistema de Movimiento WASD Directo
+    // Sistema de Control WASD / Flechas
     window.addEventListener('keydown', (e) => {
-        if(!g.active) return;
-        const speed = 20;
-        if(e.key === 'w' || e.key === 'ArrowUp') g.pos.y -= speed;
-        if(e.key === 's' || e.key === 'ArrowDown') g.pos.y += speed;
-        if(e.key === 'a' || e.key === 'ArrowLeft') g.pos.x -= speed;
-        if(e.key === 'd' || e.key === 'ArrowRight') g.pos.x += speed;
+        if(!s.active) return;
+        const speed = 25;
+        let move = false;
 
-        // Límites del mapa
-        const world = document.getElementById('world');
-        g.pos.x = Math.max(0, Math.min(world.clientWidth - 25, g.pos.x));
-        g.pos.y = Math.max(0, Math.min(world.clientHeight - 25, g.pos.y));
+        if(['w','ArrowUp'].includes(e.key)) { s.pos.y -= speed; ant.style.transform = "rotate(-90deg)"; move = true; }
+        if(['s','ArrowDown'].includes(e.key)) { s.pos.y += speed; ant.style.transform = "rotate(90deg)"; move = true; }
+        if(['a','ArrowLeft'].includes(e.key)) { s.pos.x -= speed; ant.style.transform = "rotate(180deg)"; move = true; }
+        if(['d','ArrowRight'].includes(e.key)) { s.pos.x += speed; ant.style.transform = "rotate(0deg)"; move = true; }
 
-        player.style.left = g.pos.x + "px";
-        player.style.top = g.pos.y + "px";
-
-        checkRooms();
+        if(move) {
+            const world = document.getElementById('ant-world');
+            s.pos.x = Math.max(0, Math.min(world.clientWidth - 40, s.pos.x));
+            s.pos.y = Math.max(0, Math.min(world.clientHeight - 40, s.pos.y));
+            updatePos();
+            detectCollisions();
+        }
     });
 
-    function checkRooms() {
-        document.querySelectorAll('.room').forEach(room => {
-            const r = room.getBoundingClientRect();
-            const p = player.getBoundingClientRect();
+    function updatePos() {
+        ant.style.left = s.pos.x + "px";
+        ant.style.top = s.pos.y + "px";
+    }
+
+    function detectCollisions() {
+        document.querySelectorAll('.chamber').forEach(ch => {
+            const r = ch.getBoundingClientRect();
+            const p = ant.getBoundingClientRect();
 
             if (!(r.right < p.left || r.left > p.right || r.bottom < p.top || r.top > p.bottom)) {
-                room.classList.add('active');
-                g.xp += 1;
-                if(g.xp % 100 === 0) levelUp();
-                updateUI();
+                ch.classList.add('highlight');
+                s.xp += 2;
+                if(ch.id === 'camara-salida' && s.lvl >= 1) unlockInsect(0);
+                if(s.xp % 100 === 0) levelUp();
+                updateStats();
             } else {
-                room.classList.remove('active');
+                ch.classList.remove('highlight');
             }
         });
     }
 
     function levelUp() {
-        g.lvl++;
-        addLog(`🎊 ¡Evolución al Nivel ${g.lvl}!`, "gold");
-        if(g.lvl >= 400) document.getElementById('rank').innerText = "REINA MADRE";
+        s.lvl++;
+        addLog(`🆙 ¡Nivel ${s.lvl} alcanzado! La colonia crece.`, "gold");
+        if(s.lvl === 400) document.getElementById('ui-rank').innerText = "REINA MADRE";
     }
 
-    function updateUI() {
-        document.getElementById('lvl').innerText = g.lvl;
-        document.getElementById('food').innerText = g.food;
+    function unlockInsect(id) {
+        const el = document.getElementById('e'+id);
+        if(!el.classList.contains('unlocked')) {
+            el.classList.add('unlocked');
+            el.innerText = "✅ Insecto Registrado";
+            addLog("🆕 ¡Nueva especie registrada en la Insectopedia!");
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('ui-lvl').innerText = s.lvl;
+        document.getElementById('ui-food').innerText = s.food;
     }
 
     function addLog(m, col="#2ecc71") {
