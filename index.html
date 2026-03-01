@@ -2,147 +2,192 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Ant Colony: Real Ant Experience</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empire of the Ants JS - Edición Local</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Arial', sans-serif; background: #000; color: white; }
-        
-        /* VIDEO DE FONDO FOTORREALISTA */
-        #video-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; object-fit: cover; filter: brightness(0.4) contrast(1.2); }
-
-        /* MENÚ DE INICIO ESTILO EMPIRE */
-        #menu { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; background: rgba(0,0,0,0.6); transition: 1s; }
-        .btn-start { padding: 20px 40px; font-size: 20px; background: #5d4037; color: gold; border: 2px solid gold; cursor: pointer; font-weight: bold; border-radius: 5px; }
-
-        /* INTERFAZ DE ACCIÓN */
-        #game-ui { display: none; }
-        
-        /* LA HORMIGA REALISTA */
-        #ant-player { 
-            position: absolute; 
-            width: 60px; height: 60px; 
-            /* Imagen de hormiga real top-down */
-            background: url('https://i.ibb.co') no-repeat center;
-            background-size: contain;
-            z-index: 50; 
-            transition: transform 0.15s ease-out;
-            filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
-        }
-
-        /* HUD (INTERFAZ) */
-        .hud { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; border-left: 5px solid gold; backdrop-filter: blur(5px); }
-        #log { position: fixed; bottom: 20px; left: 20px; width: 300px; height: 100px; background: rgba(0,0,0,0.8); padding: 10px; font-size: 12px; color: #2ecc71; overflow-y: auto; }
-        
-        /* ZONAS DE INTERACCIÓN (TRANSPARENTES) */
-        .zone { position: absolute; width: 200px; height: 200px; border-radius: 50%; border: 1px solid rgba(255,215,0,0.2); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: bold; }
+        body { margin: 0; background: #1a1a1a; color: #eee; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        #ui-top { width: 100%; padding: 15px; background: rgba(0,0,0,0.8); display: flex; justify-content: space-around; border-bottom: 2px solid #4a3728; z-index: 10; }
+        .stat { font-weight: bold; color: #ffcc00; }
+        canvas { background: #4a3728; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: crosshair; }
+        #controls { position: fixed; bottom: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; cursor: pointer; background: #795548; border: none; color: white; border-radius: 5px; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #a1887f; }
+        .log { position: fixed; right: 20px; top: 80px; width: 200px; font-size: 0.8em; color: #aaa; }
     </style>
 </head>
 <body>
 
-    <!-- Video de bosque real -->
-    <iframe id="video-bg" src="https://www.youtube.com" frameborder="0"></iframe>
+<div id="ui-top">
+    <div>Nivel: <span id="lvl" class="stat">1</span></div>
+    <div>Comida: <span id="food" class="stat">0</span></div>
+    <div>Hormigas: <span id="ants" class="stat">0</span></div>
+    <div>Objetivo: <span id="goal" class="stat">100</span> comida</div>
+</div>
 
-    <div id="menu">
-        <h1 style="font-size: 50px; color: gold; text-shadow: 2px 2px 10px #000;">EMPIRE OF ANTS</h1>
-        <p>Controla a la hormiga con WASD / Flechas</p>
-        <button class="btn-start" onclick="start()">INICIAR COLONIA</button>
-    </div>
+<div class="log" id="gameLog">Iniciando colonia...</div>
 
-    <div id="game-ui">
-        <div class="hud">
-            <h2 id="ui-rank">Casta: Nurse</h2>
-            <p>Nivel: <b id="ui-lvl">1</b></p>
-            <p>Comida: <b id="ui-food">0</b></p>
-            <div style="width: 200px; height: 10px; background: #333; border-radius: 5px;">
-                <div id="xp-bar" style="width: 0%; height: 100%; background: gold;"></div>
-            </div>
-        </div>
+<canvas id="gameCanvas"></canvas>
 
-        <div id="log">> Usa WASD para caminar por el bosque.</div>
-
-        <!-- El Mundo -->
-        <div id="ant-player"></div>
-        <div class="zone" style="top: 10%; left: 10%;">ENTRADA AL NIDO</div>
-        <div class="zone" style="top: 20%; left: 70%;">ZONA DE CAZA</div>
-        <div class="zone" style="top: 70%; left: 40%;">ALMACÉN DE GRANO</div>
-    </div>
+<div id="controls">
+    <button onclick="spawnAnt()">Criar Hormiga (10 Comida)</button>
+    <button onclick="resetGame()" style="background: #d32f2f;">Resetear Datos</button>
+</div>
 
 <script>
-    let p = { x: window.innerWidth/2, y: window.innerHeight/2, angle: 0, lvl: 1, xp: 0, food: 0 };
-    const ant = document.getElementById('ant-player');
-    let keys = {};
+/**
+ * EMPIRE OF THE ANTS JS - Lógica de Juego
+ * Basado en la persistencia local y progresión de niveles.
+ */
 
-    function start() {
-        document.getElementById('menu').style.display = 'none';
-        document.getElementById('game-ui').style.display = 'block';
-        updateAnt();
-        gameLoop();
-        // Cargar partida si existe
-        if(localStorage.getItem('antSave')) {
-            p = JSON.parse(localStorage.getItem('antSave'));
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const logEl = document.getElementById('gameLog');
+
+// Ajuste de tamaño
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// --- ESTADO INICIAL ---
+let gameState = {
+    nivel: 1,
+    comida: 20,
+    hormigas: [],
+    nido: { x: canvas.width/2, y: canvas.height/2 },
+    lastSave: Date.now()
+};
+
+// --- CLASE HORMIGA (IA Simple) ---
+class Ant {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.targetX = Math.random() * canvas.width;
+        this.targetY = Math.random() * canvas.height;
+        this.speed = 1.5 + (gameState.nivel * 0.2);
+        this.hasFood = false;
+    }
+
+    update() {
+        let dx = this.targetX - this.x;
+        let dy = this.targetY - this.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+
+        if(dist < 5) {
+            if(this.hasFood) {
+                // Entregar comida en el nido
+                this.hasFood = false;
+                gameState.comida += 5;
+                this.targetX = Math.random() * canvas.width;
+                this.targetY = Math.random() * canvas.height;
+                checkLevelUp();
+            } else {
+                // "Recolectar" y volver al nido
+                this.hasFood = true;
+                this.targetX = gameState.nido.x;
+                this.targetY = gameState.nido.y;
+            }
+        } else {
+            this.x += (dx/dist) * this.speed;
+            this.y += (dy/dist) * this.speed;
         }
     }
 
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+    draw() {
+        ctx.fillStyle = this.hasFood ? "#4CAF50" : "#000";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
 
-    function gameLoop() {
-        let moving = false;
-        const speed = 4;
+// --- SISTEMA DE GUARDADO (Local Storage) ---
+function saveGame() {
+    const data = {
+        nivel: gameState.nivel,
+        comida: gameState.comida,
+        numHormigas: gameState.hormigas.length
+    };
+    localStorage.setItem('empireAntsSave', JSON.stringify(data));
+    addLog("Progreso autoguardado...");
+}
 
-        if (keys['w'] || keys['arrowup']) { p.y -= speed; p.angle = 0; moving = true; }
-        if (keys['s'] || keys['arrowdown']) { p.y += speed; p.angle = 180; moving = true; }
-        if (keys['a'] || keys['arrowleft']) { p.x -= speed; p.angle = -90; moving = true; }
-        if (keys['d'] || keys['arrowright']) { p.x += speed; p.angle = 90; moving = true; }
-
-        // Diagonales
-        if (keys['w'] && keys['d']) p.angle = 45;
-        if (keys['w'] && keys['a']) p.angle = -45;
-        if (keys['s'] && keys['d']) p.angle = 135;
-        if (keys['s'] && keys['a']) p.angle = -135;
-
-        if(moving) {
-            checkZones();
-            updateAnt();
-            p.xp += 0.1; // Gana XP por caminar
-            if(p.xp >= 100) levelUp();
+function loadGame() {
+    const saved = localStorage.getItem('empireAntsSave');
+    if(saved) {
+        const data = JSON.parse(saved);
+        gameState.nivel = data.nivel;
+        gameState.comida = data.comida;
+        for(let i=0; i < data.numHormigas; i++) {
+            gameState.hormigas.push(new Ant(gameState.nido.x, gameState.nido.y));
         }
-        requestAnimationFrame(gameLoop);
+        addLog("Colonia cargada del nivel " + data.nivel);
     }
+}
 
-    function updateAnt() {
-        ant.style.left = p.x + 'px';
-        ant.style.top = p.y + 'px';
-        ant.style.transform = `rotate(${p.angle}deg)`;
-        
-        document.getElementById('ui-lvl').innerText = p.lvl;
-        document.getElementById('ui-food').innerText = Math.floor(p.food);
-        document.getElementById('xp-bar').style.width = (p.xp % 100) + '%';
+function resetGame() {
+    if(confirm("¿Seguro que quieres borrar tu imperio?")) {
+        localStorage.removeItem('empireAntsSave');
+        location.reload();
     }
+}
 
-    function checkZones() {
-        // Simulación simple de recolección al estar en zonas
-        if(p.x > window.innerWidth*0.6 && p.y < window.innerHeight*0.3) {
-            p.food += 0.05;
-            if(Math.random() < 0.01) addLog("Has encontrado restos de un insecto.");
-        }
+// --- MECÁNICAS ---
+function spawnAnt() {
+    if(gameState.comida >= 10) {
+        gameState.comida -= 10;
+        gameState.hormigas.push(new Ant(gameState.nido.x, gameState.nido.y));
+        addLog("Nueva hormiga nacida");
     }
+}
 
-    function levelUp() {
-        p.lvl++;
-        p.xp = 0;
-        addLog(`🎊 ¡Nivel ${p.lvl} alcanzado! Tu colonia es más fuerte.`, "gold");
-        if(p.lvl >= 400) document.getElementById('ui-rank').innerText = "Casta: REINA MADRE";
-        else if(p.lvl >= 50) document.getElementById('ui-rank').innerText = "Casta: Soldado";
-        
-        // Guardar progreso
-        localStorage.setItem('antSave', JSON.stringify(p));
+function checkLevelUp() {
+    let goal = gameState.nivel * 150;
+    if(gameState.comida >= goal) {
+        gameState.nivel++;
+        addLog("¡NIVEL " + gameState.nivel + " ALCANZADO!");
+        saveGame();
     }
+}
 
-    function addLog(m, col="#2ecc71") {
-        const l = document.getElementById('log');
-        l.innerHTML = `<span style="color:${col}">> ${m}</span><br>` + l.innerHTML;
-        l.scrollTop = 0;
-    }
+function addLog(msg) {
+    logEl.innerText = msg;
+}
+
+// --- BUCLE PRINCIPAL ---
+function gameLoop() {
+    // Limpieza
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dibujar Nido
+    ctx.fillStyle = "#2e1a0d";
+    ctx.beginPath();
+    ctx.arc(gameState.nido.x, gameState.nido.y, 30, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = "#ffcc00";
+    ctx.stroke();
+
+    // Actualizar Hormigas
+    gameState.hormigas.forEach(ant => {
+        ant.update();
+        ant.draw();
+    });
+
+    // Actualizar UI
+    document.getElementById('lvl').innerText = gameState.nivel;
+    document.getElementById('food').innerText = Math.floor(gameState.comida);
+    document.getElementById('ants').innerText = gameState.hormigas.length;
+    document.getElementById('goal').innerText = gameState.nivel * 150;
+
+    requestAnimationFrame(gameLoop);
+}
+
+// --- INICIO ---
+window.onload = () => {
+    loadGame();
+    // Autoguardado cada 10 segundos
+    setInterval(saveGame, 10000);
+    gameLoop();
+};
 </script>
 </body>
 </html>
