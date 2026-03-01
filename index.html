@@ -2,196 +2,132 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Ant Colony Simulator | Local Save Edition</title>
+    <title>Ant Colony: Empire Edition</title>
     <style>
-        body, html { margin: 0; height: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; background: #0a0a0a; overflow: hidden; }
-        #bg-video { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; z-index: -1; filter: brightness(0.2); }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Verdana', sans-serif; background: #000; color: white; }
         
-        /* Capas de Interfaz */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; text-align: center; }
-        #game-ui { display: none; grid-template-columns: 260px 1fr 280px; gap: 15px; padding: 15px; height: 100vh; box-sizing: border-box; }
+        /* Video de Fondo Estilo Empire of the Ants */
+        #video-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
+        #bg-video { width: 100vw; height: 100vh; object-fit: cover; filter: brightness(0.4) contrast(1.2); }
 
-        /* Rarezas de Colores */
-        .comun { color: #bdc3c7; } .poco-comun { color: #2ecc71; } .raro { color: #3498db; }
-        .epico { color: #9b59b6; } .mitico { color: #e67e22; } .legendario { color: #f1c40f; }
-        .exclusivo { color: #e74c3c; } .ultra { color: #ff00ff; text-shadow: 0 0 10px #ff00ff; }
+        /* MENÚ DE INICIO */
+        #main-menu { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; background: rgba(0,0,0,0.4); transition: 0.8s; }
+        .title { font-size: 4rem; letter-spacing: 10px; color: #f1c40f; text-shadow: 0 0 20px black; margin-bottom: 20px; }
+        .species-select { display: flex; gap: 30px; }
+        .card { width: 200px; padding: 20px; background: rgba(255,255,255,0.1); border: 1px solid #5d4037; border-radius: 5px; cursor: pointer; text-align: center; transition: 0.3s; backdrop-filter: blur(5px); }
+        .card:hover { transform: translateY(-10px); border-color: gold; background: rgba(255,255,255,0.2); }
 
-        /* Paneles */
-        .panel { background: rgba(20, 20, 20, 0.95); border: 1px solid #333; border-radius: 12px; padding: 15px; overflow-y: auto; }
-        .btn { background: #4e342e; border: none; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin: 5px 0; transition: 0.2s; }
-        .btn:hover { background: #6d4c41; transform: scale(1.02); }
+        /* INTERFAZ DE JUEGO (OCULTA AL INICIO) */
+        #game-interface { display: none; padding: 20px; height: 100vh; box-sizing: border-box; grid-template-columns: 250px 1fr; gap: 20px; }
         
-        /* Mapa de Túneles */
-        #tunnel-map { flex-grow: 1; background: #2d1b0a; border: 3px solid #3e2723; border-radius: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 15px; }
-        .chamber { border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; text-align: center; background: rgba(0,0,0,0.3); transition: 0.5s; }
-        .active { background: rgba(241, 196, 15, 0.3); border-color: gold; box-shadow: 0 0 15px gold; }
+        /* MUNDO DE ACCIÓN */
+        #world { position: relative; background: rgba(45, 27, 10, 0.7); border: 2px solid #3e2723; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 100px #000; }
+        #player { position: absolute; width: 25px; height: 25px; background: gold; border-radius: 50%; box-shadow: 0 0 15px gold; border: 2px solid #000; z-index: 100; left: 50%; top: 50%; }
+        
+        .room { position: absolute; width: 120px; height: 120px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; background: rgba(0,0,0,0.5); }
+        .room.active { border-color: gold; background: rgba(241, 196, 15, 0.2); }
 
-        #log { background: #000; height: 130px; padding: 10px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #2ecc71; border: 1px solid #222; border-radius: 8px; }
-        .xp-bg { background: #222; height: 12px; border-radius: 10px; margin: 10px 0; overflow: hidden; }
-        #xp-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #f1c40f, #e67e22); transition: 0.4s; }
+        .ui-panel { background: rgba(0,0,0,0.85); padding: 20px; border-radius: 10px; border: 1px solid #333; }
+        #log { height: 150px; overflow-y: auto; color: #2ecc71; font-family: monospace; font-size: 13px; margin-top: 20px; background: #000; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <iframe id="bg-video" src="https://www.youtube.com" frameborder="0"></iframe>
+    <div id="video-container">
+        <!-- Video Realista de Hormigas (Estilo Cinematic) -->
+        <iframe id="bg-video" src="https://www.youtube.com" frameborder="0"></iframe>
+    </div>
 
-    <!-- MENÚ INICIAL / CARGA -->
-    <div id="setup-screen" class="overlay">
-        <div style="max-width: 500px; background: #1a1a1a; padding: 30px; border-radius: 20px; border: 2px solid #f1c40f;">
-            <h1 style="color:#f1c40f; margin-bottom: 5px;">ANT COLONY SIMULATOR</h1>
-            <p id="save-status" style="font-size: 14px; color: #888;">No se detectó progreso previo.</p>
-            
-            <div id="new-game-area">
-                <input type="text" id="room-code" placeholder="Código Multijugador" style="padding:10px; margin-bottom:15px; width:80%; border-radius:5px; border:none; text-align:center;">
-                <p>Selecciona tu Especie:</p>
-                <button class="btn" onclick="initGame('Messor Barbarus')">Messor Barbarus (Granos x3)</button>
-                <button class="btn" onclick="initGame('Carebara Diversa')">Carebara Diversa (Ataque x2)</button>
-                <button class="btn" onclick="initGame('Polyrhachis Dives')">Polyrhachis Dives (Tejer x2)</button>
-            </div>
-            
-            <div id="load-area" style="display:none; margin-top:20px; border-top:1px solid #333; padding-top:20px;">
-                <button class="btn" style="background:#27ae60;" onclick="loadLocal()">CONTINUAR PARTIDA</button>
-                <p onclick="deleteSave()" style="font-size:10px; color:#e74c3c; cursor:pointer; margin-top:10px;">Borrar progreso para siempre</p>
-            </div>
+    <!-- Menú de Inicio -->
+    <div id="main-menu">
+        <div class="title">EMPIRE OF ANTS</div>
+        <p>Selecciona tu linaje para fundar la colonia</p>
+        <div class="species-select">
+            <div class="card" onclick="startGame('Carebara')"><h3>Carebara</h3><p>Guerreras letales</p></div>
+            <div class="card" onclick="startGame('Polyrhachis')"><h3>Polyrhachis</h3><p>Arquitectas tejedoras</p></div>
+            <div class="card" onclick="startGame('Messor')"><h3>Messor</h3><p>Recolectoras de grano</p></div>
         </div>
     </div>
 
-    <div id="game-ui">
-        <!-- Izquierda: Pokédex -->
-        <div class="panel">
-            <h3 style="text-align:center; color:#f1c40f;">📔 INSECTOPEDIA</h3>
-            <div id="pokedex-list"></div>
+    <!-- Interfaz de Juego -->
+    <div id="game-interface">
+        <div class="ui-panel">
+            <h2 id="ui-specie" style="color:gold;">Especie</h2>
+            <p>LVL: <b id="lvl">1</b></p>
+            <p>Rango: <b id="rank" style="color:grey">Nurse</b></p>
+            <p>Comida: <b id="food">0</b></p>
+            <hr>
+            <div id="log">Bienvenido al imperio. Usa WASD para explorar los túneles.</div>
         </div>
 
-        <!-- Centro: Mapa y Acción -->
-        <div style="display:flex; flex-direction:column; gap:10px;">
-            <div id="tunnel-map">
-                <div class="chamber" id="c1">Cámara Real</div><div class="chamber" id="c2">Cuna</div><div class="chamber" id="c3">Basura</div>
-                <div class="chamber" id="c4">Silo Norte</div><div class="chamber active" id="c5">TÚNEL CENTRAL</div><div class="chamber" id="c6">Silo Sur</div>
-                <div class="chamber" id="c7">Salida A</div><div class="chamber" id="c8">Cámara Seda</div><div class="chamber" id="c9">Salida B</div>
-            </div>
-            <div class="panel">
-                <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
-                    <span>LVL: <b id="ui-lvl">1</b></span>
-                    <span>Casta: <b id="ui-rank" class="comun">Nurse</b></span>
-                    <span>Comida: <b id="ui-food">0</b></span>
-                </div>
-                <div class="xp-bg"><div id="xp-bar"></div></div>
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
-                    <button class="btn" onclick="act('recolectar')">🍎 Comida</button>
-                    <button class="btn" onclick="act('tejer')">🕸️ Tejer</button>
-                    <button class="btn" onclick="act('excavar')">⛏️ Excavar</button>
-                    <button class="btn" onclick="act('atacar')" style="background:#c0392b;">⚔️ CAZAR</button>
-                </div>
-            </div>
-            <div id="log">Iniciando sensores...</div>
-        </div>
-
-        <!-- Derecha: Status Multijugador -->
-        <div class="panel">
-            <h3 style="text-align:center;">📡 STATUS</h3>
-            <p>Especie: <b id="ui-sp">-</b></p>
-            <p>Sala: <b id="ui-room">-</b></p>
-            <p>Modo: <b id="ui-mode">Solo</b></p>
-            <hr style="border:0; border-top:1px solid #333;">
-            <p style="font-size:11px; color:#888;">El juego se autoguarda localmente tras cada acción.</p>
+        <div id="world">
+            <div id="player"></div>
+            <div class="room" style="top:10%; left:10%;" id="reina">Cámara Real</div>
+            <div class="room" style="top:10%; left:70%;" id="cuna">Cámara de Cría</div>
+            <div class="room" style="top:70%; left:40%;" id="salida">Salida al Mundo</div>
         </div>
     </div>
 
 <script>
-    let d = { sp:'', lvl:1, xp:0, next:100, food:0, code:'', found:[], rank:'Nurse' };
+    let g = { sp: '', lvl: 1, xp: 0, food: 0, pos: {x: 400, y: 300}, active: false };
+    const player = document.getElementById('player');
 
-    const insectos = [
-        {id:0, n:'Áfido', l:1}, {id:1, n:'Cucaracha', l:20}, {id:2, n:'Araña', l:80},
-        {id:3, n:'Escarabajo', l:180}, {id:4, n:'Mantis', l:350}
-    ];
-
-    const rangos = [
-        {l:0, n:'Nurse', r:'comun'}, {l:20, n:'Obrera', r:'poco-comun'}, {l:50, n:'Soldado', r:'raro'},
-        {l:100, n:'Tejedora', r:'epico'}, {l:250, n:'Artillera', r:'mitico'}, {l:320, n:'Berserker', r:'legendario'},
-        {l:370, n:'Macho', r:'exclusivo'}, {l:400, n:'REINA MADRE', r:'ultra'}
-    ];
-
-    window.onload = () => {
-        if(localStorage.getItem('antSimSave')) {
-            document.getElementById('save-status').innerText = "¡Colonia previa detectada!";
-            document.getElementById('load-area').style.display = 'block';
-        }
-        initPokedex();
-    };
-
-    function initGame(sp) {
-        d.sp = sp;
-        d.code = document.getElementById('room-code').value || 'OFFLINE';
-        startUI();
+    function startGame(species) {
+        g.sp = species;
+        g.active = true;
+        document.getElementById('main-menu').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('game-interface').style.display = 'grid';
+            document.getElementById('ui-specie').innerText = species;
+        }, 800);
     }
 
-    function startUI() {
-        document.getElementById('setup-screen').style.display = 'none';
-        document.getElementById('game-ui').style.display = 'grid';
-        document.getElementById('ui-sp').innerText = d.sp;
-        document.getElementById('ui-room').innerText = d.code;
-        if(parseInt(d.code) % 2 === 0) document.getElementById('ui-mode').innerText = "COOPERATIVO";
-        updateUI();
-        addLog(`Colonia iniciada. Especie: ${d.sp}.`);
+    // Sistema de Movimiento WASD Directo
+    window.addEventListener('keydown', (e) => {
+        if(!g.active) return;
+        const speed = 20;
+        if(e.key === 'w' || e.key === 'ArrowUp') g.pos.y -= speed;
+        if(e.key === 's' || e.key === 'ArrowDown') g.pos.y += speed;
+        if(e.key === 'a' || e.key === 'ArrowLeft') g.pos.x -= speed;
+        if(e.key === 'd' || e.key === 'ArrowRight') g.pos.x += speed;
+
+        // Límites del mapa
+        const world = document.getElementById('world');
+        g.pos.x = Math.max(0, Math.min(world.clientWidth - 25, g.pos.x));
+        g.pos.y = Math.max(0, Math.min(world.clientHeight - 25, g.pos.y));
+
+        player.style.left = g.pos.x + "px";
+        player.style.top = g.pos.y + "px";
+
+        checkRooms();
+    });
+
+    function checkRooms() {
+        document.querySelectorAll('.room').forEach(room => {
+            const r = room.getBoundingClientRect();
+            const p = player.getBoundingClientRect();
+
+            if (!(r.right < p.left || r.left > p.right || r.bottom < p.top || r.top > p.bottom)) {
+                room.classList.add('active');
+                g.xp += 1;
+                if(g.xp % 100 === 0) levelUp();
+                updateUI();
+            } else {
+                room.classList.remove('active');
+            }
+        });
     }
 
-    function act(type) {
-        let x = 10; let f = 5;
-        if(d.sp === 'Messor' && type === 'recolectar') f *= 3;
-        if(d.sp === 'Polyrhachis' && type === 'tejer') x *= 2;
-        if(d.sp === 'Carebara' && type === 'atacar') x *= 2;
-
-        if(type === 'atacar') {
-            let ins = insectos.find(i => i.l <= d.lvl && !d.found.includes(i.id));
-            if(ins) { d.found.push(ins.id); unlockInsUI(ins); x += 100; addLog(`¡NUEVO INSECTO: ${ins.n}!`, "yellow"); }
-        }
-
-        d.xp += x; d.food += f;
-        checkLvl(); updateUI(); moveAnt(); saveLocal();
+    function levelUp() {
+        g.lvl++;
+        addLog(`🎊 ¡Evolución al Nivel ${g.lvl}!`, "gold");
+        if(g.lvl >= 400) document.getElementById('rank').innerText = "REINA MADRE";
     }
-
-    function checkLvl() {
-        if(d.xp >= d.next) {
-            d.lvl++; d.xp = 0;
-            d.next = Math.floor(100 * Math.pow(d.lvl, 1.7));
-            let r = [...rangos].reverse().find(ra => d.lvl >= ra.l);
-            d.rank = r.n;
-            document.getElementById('ui-rank').className = r.r;
-            addLog(`🎊 ¡Nivel ${d.lvl} alcanzado!`, "gold");
-        }
-    }
-
-    function saveLocal() { localStorage.setItem('antSimSave', JSON.stringify(d)); }
-
-    function loadLocal() {
-        d = JSON.parse(localStorage.getItem('antSimSave'));
-        d.found.forEach(id => unlockInsUI(insectos.find(i => i.id === id)));
-        startUI();
-    }
-
-    function deleteSave() { localStorage.clear(); location.reload(); }
 
     function updateUI() {
-        document.getElementById('ui-lvl').innerText = d.lvl;
-        document.getElementById('ui-food').innerText = d.food;
-        document.getElementById('ui-rank').innerText = d.rank;
-        document.getElementById('xp-bar').style.width = (d.xp / d.next * 100) + "%";
-    }
-
-    function initPokedex() {
-        const list = document.getElementById('pokedex-list');
-        insectos.forEach(i => list.innerHTML += `<div id="ins-${i.id}" style="padding:10px; margin:5px 0; background:#111; opacity:0.3; border-radius:5px; font-size:12px;"><b>???</b><br>Nivel ${i.l}</div>`);
-    }
-
-    function unlockInsUI(ins) {
-        const el = document.getElementById(`ins-${ins.id}`);
-        if(el) { el.style.opacity = "1"; el.style.borderLeft = "4px solid gold"; el.innerHTML = `<b>✅ ${ins.n}</b><br>Registrado`; }
-    }
-
-    function moveAnt() {
-        document.querySelectorAll('.chamber').forEach(c => c.classList.remove('active'));
-        document.getElementById(`c${Math.floor(Math.random()*9)+1}`).classList.add('active');
+        document.getElementById('lvl').innerText = g.lvl;
+        document.getElementById('food').innerText = g.food;
     }
 
     function addLog(m, col="#2ecc71") {
